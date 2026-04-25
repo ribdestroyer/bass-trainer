@@ -6,7 +6,7 @@
 <!-- ★ スマホ縮小バグを防ぐ超重要タグ -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>低音部譜表 音符読みトレーナー</title>
+<title>低音部譜表 音符読み訓練</title>
 
 <style>
   body {
@@ -55,6 +55,7 @@
   .line4 { top: 60px; }
   .line5 { top: 50px; }
 
+  /* ★ PC のヘ音記号位置 */
   .bass-clef {
     position: absolute;
     left: 18px;
@@ -136,10 +137,11 @@
       height: 120px;
     }
 
+    /* ★ スマホではヘ音記号をさらに下げる（F の線に近づける） */
     .bass-clef {
       font-size: 28px;
       left: 14px;
-      top: 36px;
+      top: 52px;   /* ← 36 → 48 → 52 に調整して最適化 */
     }
 
     .buttons button {
@@ -222,6 +224,7 @@ const bassNotes = [
 ];
 
 let currentNote = null;
+let lastNoteName = null;   // ★ 前回の音名を記録
 let questionCount = 0;
 let correctCount = 0;
 let startTime = 0;
@@ -277,10 +280,16 @@ function setLeftF() {
   );
 }
 
-// 新しい問題
+// ★ 同じ音が連続しない newQuestion()
 function newQuestion() {
-  const idx = Math.floor(Math.random() * bassNotes.length);
-  currentNote = bassNotes[idx];
+  let next;
+
+  do {
+    next = bassNotes[Math.floor(Math.random() * bassNotes.length)];
+  } while (next.name === lastNoteName);
+
+  currentNote = next;
+  lastNoteName = next.name;
 
   setNotePosition(
     document.getElementById("note-right"),
@@ -327,6 +336,7 @@ document.getElementById("start-btn").addEventListener("click", () => {
   questionCount = 0;
   correctCount = 0;
   startTime = Date.now();
+  lastNoteName = null;  // ★ 初回は連続チェックをリセット
   document.getElementById("start-btn").textContent = "挑戦中（残り10問）";
   newQuestion();
 });
