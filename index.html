@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>低音部譜表 音符読みトレーナー</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f5f5f5;
+    padding: 20px;
+  }
+
+  /* ★ タイトルと説明をセンター揃え */
+  h1, p {
+    text-align: center;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    align-items: center;
+  }
+
+  .staff-block {
+    background: #fff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    width: 260px;
+  }
+
+  .staff {
+    position: relative;
+    width: 220px;
+    height: 140px;
+    margin-bottom: 8px;
+  }
+
+  .staff-line {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    height: 1.5px;
+    background: #333;
+  }
+  .line1 { top: 90px; }
+  .line2 { top: 80px; }
+  .line3 { top: 70px; }
+  .line4 { top: 60px; }
+  .line5 { top: 50px; }
+
+  .bass-clef {
+    position: absolute;
+    left: 18px;
+    top: 40px;
+    font-size: 32px;
+  }
+
+  .note {
+    position: absolute;
+    width: 14px;
+    height: 10px;
+    border-radius: 50%;
+    background: #000;
+  }
+
+  .ledger-line {
+    position: absolute;
+    height: 1.5px;
+    background: #333;
+    left: 40px;
+    width: 40px;
+  }
+
+  /* ★ ボタンを中央揃え */
+  .buttons {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .buttons button {
+    padding: 6px 10px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .result {
+    margin-top: 10px;
+    font-size: 15px;
+    min-height: 1.5em;
+    text-align: center;
+  }
+
+  #start-btn {
+    margin: 15px auto;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    display: block;
+  }
+
+  .correct { color: #0a7a1f; font-weight: bold; }
+  .wrong { color: #c01818; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>低音部譜表（ヘ音記号） 音符読みトレーナー</h1>
+<p>10問タイムアタック。スタートを押すと開始します。</p>
+
+<button id="start-btn">スタート</button>
+
+<div class="container">
+
+  <!-- 見本（F固定） -->
+  <div class="staff-block">
+    <div class="staff" id="staff-left">
+      <div class="staff-line line1"></div>
+      <div class="staff-line line2"></div>
+      <div class="staff-line line3"></div>
+      <div class="staff-line line4"></div>
+      <div class="staff-line line5"></div>
+      <div class="bass-clef">𝄢</div>
+      <div class="note" id="note-left"></div>
+      <div class="ledger-line" id="ledger-left" style="display:none;"></div>
+    </div>
+    <div style="text-align:center;">ここがF</div>
+  </div>
+
+  <!-- 問題 -->
+  <div class="staff-block">
+    <div class="staff" id="staff-right">
+      <div class="staff-line line1"></div>
+      <div class="staff-line line2"></div>
+      <div class="staff-line line3"></div>
+      <div class="staff-line line4"></div>
+      <div class="staff-line line5"></div>
+      <div class="bass-clef">𝄢</div>
+      <div class="note" id="note-right"></div>
+      <div class="ledger-line" id="ledger-right" style="display:none;"></div>
+    </div>
+
+    <!-- ★ A〜G を 2 行に分割 -->
+    <div class="buttons" id="row1"></div>
+    <div class="buttons" id="row2"></div>
+
+    <div class="result" id="result"></div>
+  </div>
+
+</div>
+
+<script>
+const staffBottomLineY = 90;
+const lineSpacing = 10;
+
+const bassNotes = [
+  { name: "E", posIndex: -2 },
+  { name: "F", posIndex: -1 },
+  { name: "G", posIndex: 0 },
+  { name: "A", posIndex: 1 },
+  { name: "B", posIndex: 2 },
+  { name: "C", posIndex: 3 },
+  { name: "D", posIndex: 4 },
+  { name: "E", posIndex: 5 },
+  { name: "F", posIndex: 6 },
+  { name: "G", posIndex: 7 },
+  { name: "A", posIndex: 8 },
+  { name: "B", posIndex: 9 },
+  { name: "C", posIndex: 10 },
+  { name: "D", posIndex: 11 }
+];
+
+let currentNote = null;
+let questionCount = 0;
+let correctCount = 0;
+let startTime = 0;
+let running = false;
+
+// ★ ボタンを 2 行に分けて配置
+const row1 = document.getElementById("row1");
+const row2 = document.getElementById("row2");
+
+["A","B","C","D"].forEach(n => {
+  const btn = document.createElement("button");
+  btn.textContent = n;
+  btn.addEventListener("click", () => running && checkAnswer(n));
+  row1.appendChild(btn);
+});
+
+["E","F","G"].forEach(n => {
+  const btn = document.createElement("button");
+  btn.textContent = n;
+  btn.addEventListener("click", () => running && checkAnswer(n));
+  row2.appendChild(btn);
+});
+
+// 五線位置計算
+function posIndexToY(posIndex) {
+  return staffBottomLineY - posIndex * (lineSpacing / 2);
+}
+
+// ノート描画
+function setNotePosition(noteElem, ledgerElem, noteObj) {
+  const y = posIndexToY(noteObj.posIndex);
+  noteElem.style.left = "70px";
+  noteElem.style.top = (y - 5) + "px";
+
+  if (noteObj.posIndex <= -1) {
+    ledgerElem.style.display = "block";
+    ledgerElem.style.top = (posIndexToY(-2) - 1) + "px";
+  } else if (noteObj.posIndex >= 10) {
+    ledgerElem.style.display = "block";
+    ledgerElem.style.top = (posIndexToY(10) - 1) + "px";
+  } else {
+    ledgerElem.style.display = "none";
+  }
+}
+
+// 左側のF固定
+function setLeftF() {
+  const F = { name: "F", posIndex: 6 };
+  setNotePosition(
+    document.getElementById("note-left"),
+    document.getElementById("ledger-left"),
+    F
+  );
+}
+
+// 新しい問題
+function newQuestion() {
+  const idx = Math.floor(Math.random() * bassNotes.length);
+  currentNote = bassNotes[idx];
+
+  setNotePosition(
+    document.getElementById("note-right"),
+    document.getElementById("ledger-right"),
+    currentNote
+  );
+
+  document.getElementById("result").textContent = "";
+}
+
+// 回答処理
+function checkAnswer(answer) {
+  const resultElem = document.getElementById("result");
+
+  if (answer === currentNote.name) {
+    resultElem.innerHTML = `<span class="correct">正解！ ${answer}</span>`;
+    correctCount++;
+  } else {
+    resultElem.innerHTML = `<span class="wrong">不正解… 正解は ${currentNote.name}</span>`;
+  }
+
+  questionCount++;
+
+  const remaining = 10 - questionCount;
+  if (remaining > 0) {
+    document.getElementById("start-btn").textContent = `挑戦中（残り${remaining}問）`;
+  }
+
+  if (questionCount >= 10) {
+    running = false;
+    const time = ((Date.now() - startTime) / 1000).toFixed(2);
+    const rate = Math.round((correctCount / 10) * 100);
+    document.getElementById("start-btn").textContent =
+      `記録：${time}秒　正解率：${rate}%（スタートに戻る）`;
+    return;
+  }
+
+  setTimeout(() => newQuestion(), 800);
+}
+
+// スタートボタン
+document.getElementById("start-btn").addEventListener("click", () => {
+  running = true;
+  questionCount = 0;
+  correctCount = 0;
+  startTime = Date.now();
+  document.getElementById("start-btn").textContent = "挑戦中（残り10問）";
+  newQuestion();
+});
+
+// 初期表示
+setLeftF();
+newQuestion();
+</script>
+</body>
+</html>
